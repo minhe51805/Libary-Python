@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "scanlt3d"
-version = "0.1.1"
+version = "0.1.2"
 description = "Realtime 3D (depth) + detection pipeline for laptop cameras (OpenCV optional)"
 requires-python = ">=3.10"
 authors = [{name = "scanLt contributors"}]
@@ -37,6 +37,9 @@ torch = [
 ]
 mediapipe = [
   "mediapipe>=0.10",
+]
+opencv = [
+  "opencv-python>=4.0",
 ]
 
 [tool.setuptools]
