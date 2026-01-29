@@ -1,0 +1,49 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "scanLt"
+version = "0.1.0"
+description = "Realtime 3D (depth) + detection pipeline for laptop cameras (OpenCV optional)"
+requires-python = ">=3.10"
+authors = [{name = "scanLt contributors"}]
+readme = "README.md"
+license = {file = "LICENSE"}
+keywords = ["realtime", "camera", "depth", "detection"]
+classifiers = [
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Operating System :: OS Independent",
+]
+
+dependencies = [
+  "numpy>=1.23",
+  "pillow>=9.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/your-org/scanLt"
+Repository = "https://github.com/your-org/scanLt"
+Issues = "https://github.com/your-org/scanLt/issues"
+
+[project.optional-dependencies]
+onnx = [
+  "onnxruntime>=1.16",
+]
+torch = [
+  "torch>=2.0",
+]
+mediapipe = [
+  "mediapipe>=0.10",
+]
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+line-length = 100
