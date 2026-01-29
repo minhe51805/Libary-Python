@@ -14,7 +14,7 @@ This library **does not require OpenCV**.
 CPU-only, no special hardware acceleration:
 
 ```bash
-pip install scanLt
+pip install scanlt3d
 ```
 
 ### Optional extras
@@ -22,9 +22,9 @@ pip install scanLt
 You can install extra backends depending on your machine.
 
 ```bash
-pip install "scanLt[onnx]"       # ONNX Runtime (recommended cross-platform)
-pip install "scanLt[torch]"      # PyTorch (CUDA/MPS support)
-pip install "scanLt[mediapipe]"  # (planned) camera source via MediaPipe
+pip install "scanlt3d[onnx]"       # ONNX Runtime (recommended cross-platform)
+pip install "scanlt3d[torch]"      # PyTorch (CUDA/MPS support)
+pip install "scanlt3d[mediapipe]"  # (planned) camera source via MediaPipe
 ```
 
 > Note: Hardware acceleration depends on which runtime is installed and available on your system (CUDA/DirectML/MPS).
@@ -54,7 +54,7 @@ print(scanlt.choose_backend())
 Install:
 
 ```bash
-pip install scanLt
+pip install scanlt3d
 # recommended runtime
 pip install "scanLt[onnx]"
 ```
@@ -104,7 +104,7 @@ Notes:
 Install:
 
 ```bash
-pip install scanLt
+pip install scanlt3d
 pip install "scanLt[torch]"
 ```
 
