@@ -2,8 +2,8 @@
 
 Realtime camera pipeline for **detection** + **monocular depth** ("3D") with pluggable backends.
 
-- Project/package name (PyPI): `scanLt`
-- Import name (Python): `scanlt`
+- Project/package name (PyPI): `scanLt3d`
+- Import name (Python): `scanlt3d`
 
 This library **does not require OpenCV**.
 
