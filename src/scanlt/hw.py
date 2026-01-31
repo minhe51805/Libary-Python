@@ -28,7 +28,7 @@ def get_hardware_info() -> HardwareInfo:
 
     is_apple_silicon = is_mac and (machine in {"arm64", "aarch64"} or "arm" in machine)
 
-    env_force_backend = os.environ.get("SCAN3D_BACKEND")
+    env_force_backend = os.environ.get("SCANLT_BACKEND")
 
     return HardwareInfo(
         os=sysname,

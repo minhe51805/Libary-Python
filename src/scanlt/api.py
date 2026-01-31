@@ -76,6 +76,44 @@ class WebcamSource:
             cap.release()
 
 
+def demo_webcam(
+    *,
+    profile: str = "fast",
+    device_id: int = 0,
+    width: int = 640,
+    height: int = 480,
+    backend: str = "auto",
+    target_fps: float = 20.0,
+) -> None:
+    """Run webcam demo with instance segmentation mask.
+
+    - Downloads a YOLOv8-seg ONNX model (profile: fast/balanced/quality) on first run and caches it.
+    - Requires OpenCV for webcam + preview.
+    """
+
+    from .model_zoo import ensure_model, get_default_yolo_seg_specs
+    from .onnx_yolo_seg import OnnxYoloSegDetector
+
+    specs = get_default_yolo_seg_specs()
+    if profile not in specs:
+        raise ValueError(f"Unknown profile '{profile}'. Choose one of: {', '.join(specs.keys())}")
+
+    model_path = ensure_model(specs[profile])
+    det = OnnxYoloSegDetector(str(model_path), backend=backend)
+
+    src = WebcamSource(device_id=device_id, width=width, height=height, convert_bgr_to_rgb=True)
+
+    run(
+        source=src,
+        detector=det,
+        depth=None,
+        target_fps=target_fps,
+        show_preview=True,
+        show_depth=False,
+        window_name="scanlt3d",
+    )
+
+
 def _now_s() -> float:
     import time
 
@@ -102,12 +140,6 @@ class _NoopDetector:
         return []
 
 
-class _NoopDepth:
-    def predict(self, frame: np.ndarray, detections: Optional[list[Detection]] = None) -> np.ndarray:
-        h, w = frame.shape[:2]
-        return np.zeros((h, w), dtype=np.float32)
-
-
 def run(
     *,
     source: Optional[FrameSource] = None,
@@ -118,21 +150,27 @@ def run(
     max_frames: Optional[int] = None,
     show_preview: bool = True,
     window_name: str = "scanlt",
-    show_depth: bool = True,
+    show_depth: bool = False,
 ) -> None:
+    """Run the realtime loop.
+
+    Notes:
+    - If `source` is None, a dummy source is used (never fails).
+    - If `detector` is None, a noop detector is used (no detections).
+    - If `depth` is None, depth is disabled (no fake depth panel).
+    """
 
     if source is None:
         source = _DummyCamera()
     if detector is None:
         detector = _NoopDetector()
-    if depth is None:
-        depth = _NoopDepth()
 
     frame_interval = 1.0 / max(target_fps, 1e-6)
 
     t_last = _now_s()
     fps = 0.0
     n = 0
+
     preview_cv2 = None
     if show_preview:
         try:
@@ -142,6 +180,22 @@ def run(
         except Exception:
             preview_cv2 = None
 
+    def _overlay_mask_rgb(out: np.ndarray, mask01: np.ndarray, color: tuple[int, int, int]) -> None:
+        # out: RGB uint8
+        if mask01.dtype != np.float32:
+            m = mask01.astype(np.float32, copy=False)
+        else:
+            m = mask01
+        if m.max() > 1.0:
+            m = m / 255.0
+        m = np.clip(m, 0.0, 1.0)
+        if m.ndim == 3:
+            m = m[..., 0]
+
+        alpha = 0.45
+        for c, col in enumerate(color):
+            out[..., c] = (out[..., c] * (1.0 - alpha * m) + col * (alpha * m)).astype(np.uint8)
+
     def _draw_detections_rgb(img: np.ndarray, detections: list[Detection]) -> np.ndarray:
         if preview_cv2 is None:
             return img
@@ -149,20 +203,47 @@ def run(
         cv2 = preview_cv2
         out = img.copy()
         h, w = out.shape[:2]
+
+        # Show a clear hint if no detector configured
+        if detector is None or isinstance(detector, _NoopDetector):
+            cv2.putText(
+                out,
+                "No detector configured (pass detector=...)",
+                (10, 60),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.7,
+                (255, 255, 0),
+                2,
+            )
+
         for det in detections:
             x1, y1, x2, y2 = det.xyxy
             x1i = int(max(0, min(w - 1, x1)))
             y1i = int(max(0, min(h - 1, y1)))
             x2i = int(max(0, min(w - 1, x2)))
             y2i = int(max(0, min(h - 1, y2)))
+
+            # If detector attached a mask dynamically
+            mask = getattr(det, "mask", None)
+            if mask is not None:
+                _overlay_mask_rgb(out, mask, (0, 255, 0))
+
             cv2.rectangle(out, (x1i, y1i), (x2i, y2i), (0, 255, 0), 2)
             label = f"{det.class_id}:{det.score:.2f}"
-            cv2.putText(out, label, (x1i, max(0, y1i - 6)), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
+            cv2.putText(
+                out,
+                label,
+                (x1i, max(0, y1i - 6)),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.5,
+                (0, 255, 0),
+                1,
+            )
         return out
 
     for frame in source:
         t0 = _now_s()
-        dets = detector.predict(frame)
+        dets = detector.predict(frame) if detector is not None else []
         depth_map = depth.predict(frame, dets) if depth is not None else None
 
         t1 = _now_s()
@@ -188,9 +269,7 @@ def run(
                 2,
             )
 
-            panels = []
-            # OpenCV expects BGR
-            panels.append(cv2.cvtColor(vis_rgb, cv2.COLOR_RGB2BGR))
+            panels = [cv2.cvtColor(vis_rgb, cv2.COLOR_RGB2BGR)]
 
             if show_depth and depth_map is not None:
                 d = depth_map
@@ -212,7 +291,6 @@ def run(
         if max_frames is not None and n >= max_frames:
             break
 
-        # Simple pacing (best-effort)
         elapsed = _now_s() - t0
         sleep_s = frame_interval - elapsed
         if sleep_s > 0:

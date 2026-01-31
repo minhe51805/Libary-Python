@@ -23,7 +23,7 @@ def choose_backend(preferred: str = "auto") -> BackendChoice:
     - mps (torch MPS) [macOS Apple Silicon]
     - coreml (not implemented yet; reserved)
 
-    Users can override with env var SCAN3D_BACKEND.
+    Users can override with env var SCANLT_BACKEND.
     """
 
     hw = get_hardware_info()

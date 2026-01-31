@@ -1,9 +1,9 @@
-# scanLt
+# scanlt3d
 
 Realtime camera pipeline for **detection** + **monocular depth** ("3D") with pluggable backends.
 
-- Project/package name (PyPI): `scanLt3d`
-- Import name (Python): `scanlt3d`
+- Project/package name (PyPI): `scanlt3d`
+- Import name (Python): `scanlt`
 
 This library **does not require OpenCV**.
 
@@ -29,7 +29,42 @@ pip install "scanlt3d[mediapipe]"  # (planned) camera source via MediaPipe
 
 > Note: Hardware acceleration depends on which runtime is installed and available on your system (CUDA/DirectML/MPS).
 
-## Quickstart (works immediately)
+## Quickstart
+
+### 1) Demo webcam with **segmentation mask** (recommended)
+
+This is the easiest way to understand what scanlt3d does.
+
+Install OpenCV for preview:
+
+```bash
+pip install "scanlt3d[opencv]"
+```
+
+Then run:
+
+```python
+import scanlt
+
+# Downloads a default segmentation model on first run (profile="fast") and caches it.
+# Press `q` to quit.
+scanlt.demo_webcam()
+```
+
+Choose a different model profile (auto-downloads if needed):
+
+```python
+import scanlt
+
+scanlt.demo_webcam(profile="balanced")
+scanlt.demo_webcam(profile="quality")
+```
+
+Notes:
+- The **first run** may take time to download the model.
+- If OpenCV is not installed, `demo_webcam()` will run headless and you should use `on_result` to consume masks.
+
+### 2) Low-level loop (always works)
 
 ```python
 import scanlt
@@ -41,10 +76,10 @@ scanlt.run()
 
 ## Use by hardware (CPU / NVIDIA / Windows iGPU / Mac M)
 
-scanLt can auto-detect the best available backend:
+scanlt can auto-detect the best available backend:
 
 ```python
-import scanlt
+import scanlt   
 
 print(scanlt.choose_backend())
 ```
@@ -56,7 +91,7 @@ Install:
 ```bash
 pip install scanlt3d
 # recommended runtime
-pip install "scanLt[onnx]"
+pip install "scanlt3d[onnx]"
 ```
 
 What to expect:
@@ -75,24 +110,24 @@ Install (choose one):
 
 ```bash
 # Option A: PyTorch CUDA
-pip install "scanLt[torch]"
+pip install "scanlt3d[torch]"
 
 # Option B: ONNX Runtime (you must install a CUDA-enabled onnxruntime build)
-pip install "scanLt[onnx]"
+pip install "scanlt3d[onnx]"
 ```
 
 Notes:
-- If `choose_backend()` returns `cuda`, scanLt detected a CUDA-capable runtime.
+- If `choose_backend()` returns `cuda`, scanlt detected a CUDA-capable runtime.
 - CUDA packaging varies by OS/driver; if CUDA runtime is not available, scanLt falls back to CPU.
 
 ### 3) Windows Intel/AMD iGPU (DirectML)
 
-scanLt can pick `dml` **if** your ONNX Runtime installation exposes a DirectML provider.
+scanlt can pick `dml` **if** your ONNX Runtime installation exposes a DirectML provider.
 
 Install:
 
 ```bash
-pip install "scanLt[onnx]"
+pip install "scanlt3d[onnx]"
 ```
 
 Notes:
@@ -105,7 +140,7 @@ Install:
 
 ```bash
 pip install scanlt3d
-pip install "scanLt[torch]"
+pip install "scanlt3d[torch]"
 ```
 
 Notes:
@@ -116,16 +151,16 @@ Notes:
 
 You can override backend selection via environment variable:
 
-- `SCAN3D_BACKEND=cpu`
-- `SCAN3D_BACKEND=cuda`
-- `SCAN3D_BACKEND=dml`
-- `SCAN3D_BACKEND=mps`
+- `SCANLT_BACKEND=cpu`
+- `SCANLT_BACKEND=cuda`
+- `SCANLT_BACKEND=dml`
+- `SCANLT_BACKEND=mps`
 
 Example:
 
 ```bash
 # Windows PowerShell
-setx SCAN3D_BACKEND cuda
+setx SCANLT_BACKEND cuda
 ```
 
 (Then restart your terminal.)
