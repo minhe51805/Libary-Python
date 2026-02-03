@@ -1,4 +1,4 @@
-from .api import WebcamSource, demo_webcam, run
+from .api import WebcamSource, demo_webcam, run, track_objects, create_tracker
 from .backends import choose_backend
 from .tracker3d import Tracker3D
 from .track import Track3D
@@ -12,4 +12,6 @@ __all__ = [
     "Tracker3D",
     "Track3D",
     "draw_tracks",
+    "track_objects",
+    "create_tracker",
 ]

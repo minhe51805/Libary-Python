@@ -303,3 +303,58 @@ def run(
             preview_cv2.destroyWindow(window_name)
         except Exception:
             pass
+
+
+def track_objects(
+    frame: np.ndarray,
+    tracker: Optional["Tracker3D"] = None,
+) -> tuple[np.ndarray, list["Track3D"]]:
+    """One-liner to track objects in a single frame.
+    
+    Args:
+        frame: Input frame (H, W, 3) in BGR or RGB format
+        tracker: Optional Tracker3D instance. If None, creates a new one.
+    
+    Returns:
+        Tuple of (annotated_frame, tracks)
+    
+    Example:
+        >>> import cv2
+        >>> import scanlt
+        >>> frame = cv2.imread("image.jpg")
+        >>> annotated, tracks = scanlt.track_objects(frame)
+        >>> print(tracks)
+    """
+    # Import here to avoid circular dependency
+    from .tracker3d import Tracker3D
+    
+    if tracker is None:
+        tracker = Tracker3D(profile="fast")
+    
+    return tracker.process(frame)
+
+
+def create_tracker(
+    profile: str = "fast",
+    backend: str = "auto",
+    **kwargs,
+) -> "Tracker3D":
+    """Factory function to create a Tracker3D with preset configuration.
+    
+    Args:
+        profile: Model profile ("fast", "balanced", "quality")
+        backend: Computing backend ("auto", "cpu", "cuda", "mps", "dml")
+        **kwargs: Additional arguments passed to Tracker3D constructor
+    
+    Returns:
+        Configured Tracker3D instance
+    
+    Example:
+        >>> import scanlt
+        >>> tracker = scanlt.create_tracker(profile="balanced", backend="cuda")
+        >>> frame, tracks = tracker.process(image)
+    """
+    # Import here to avoid circular dependency
+    from .tracker3d import Tracker3D
+    
+    return Tracker3D(profile=profile, backend=backend, **kwargs)
