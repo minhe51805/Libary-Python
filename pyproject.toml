@@ -1,10 +1,10 @@
 [build-system]
-requires = ["setuptools>=68", "wheel"]
-build-backend = "setuptools.build_meta"
+requires = ["maturin>=1.5,<2"]
+build-backend = "maturin"
 
 [project]
 name = "scanlt3d"
-version = "0.1.5"
+version = "0.1.7"
 description = "Realtime 3D (depth) + detection pipeline for laptop cameras (OpenCV optional)"
 requires-python = ">=3.10"
 authors = [{name = "scanlt3d contributors"}]
@@ -41,11 +41,10 @@ mediapipe = [
 ]
 opencv = []
 
-[tool.setuptools]
-package-dir = {"" = "src"}
-
-[tool.setuptools.packages.find]
-where = ["src"]
+[tool.maturin]
+python-source = "src"
+module-name = "scanlt._rust_core"
+features = ["pyo3/extension-module"]
 
 [tool.ruff]
 line-length = 100

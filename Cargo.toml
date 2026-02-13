@@ -1,0 +1,15 @@
+[package]
+name = "scanlt-rust-core"
+version = "0.1.1"
+edition = "2021"
+
+[lib]
+name = "_rust_core"
+crate-type = ["cdylib"]
+path = "rust/src/lib.rs"
+
+[dependencies]
+pyo3 = { version = "0.22", features = ["extension-module"] }
+numpy = "0.22"
+ndarray = { version = "0.16", features = ["rayon"] }
+rayon = "1.10"

@@ -5,6 +5,15 @@ from typing import Callable, Optional, Protocol, Iterator
 
 import numpy as np
 
+from ._accel import (
+    bgr_to_rgb,
+    rgb_to_bgr,
+    generate_dummy_frame,
+    draw_bboxes_on_frame,
+    normalize_depth_map,
+    depth_to_colormap_jet,
+)
+
 
 @dataclass(frozen=True)
 class Detection:
@@ -70,7 +79,7 @@ class WebcamSource:
                     raise RuntimeError("Failed to read frame from webcam")
 
                 if self.convert_bgr_to_rgb:
-                    frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                    frame = bgr_to_rgb(frame)
 
                 yield frame
         finally:
@@ -129,11 +138,7 @@ class _DummyCamera:
         t0 = _now_s()
         while True:
             t = _now_s() - t0
-            frame = np.zeros((self.h, self.w, 3), dtype=np.uint8)
-            x = int((np.sin(t) * 0.4 + 0.5) * (self.w - 80))
-            y = int((np.cos(t) * 0.4 + 0.5) * (self.h - 80))
-            frame[y : y + 80, x : x + 80, 1] = 255
-            yield frame
+            yield generate_dummy_frame(self.h, self.w, t)
 
 
 class _NoopDetector:
@@ -270,15 +275,11 @@ def run(
                 2,
             )
 
-            panels = [cv2.cvtColor(vis_rgb, cv2.COLOR_RGB2BGR)]
+            panels = [rgb_to_bgr(vis_rgb)]
 
             if show_depth and depth_map is not None:
-                d = depth_map
-                if d.dtype != np.float32:
-                    d = d.astype(np.float32, copy=False)
-                d_norm = cv2.normalize(d, None, 0, 255, cv2.NORM_MINMAX)
-                d_u8 = d_norm.astype(np.uint8)
-                d_color = cv2.applyColorMap(d_u8, cv2.COLORMAP_JET)
+                d_u8 = normalize_depth_map(depth_map)
+                d_color = depth_to_colormap_jet(d_u8)
                 panels.append(d_color)
 
             vis = panels[0] if len(panels) == 1 else cv2.hconcat(panels)
