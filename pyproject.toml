@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "scanlt3d"
-version = "0.1.4"
+version = "0.1.5"
 description = "Realtime 3D (depth) + detection pipeline for laptop cameras (OpenCV optional)"
 requires-python = ">=3.10"
 authors = [{name = "scanlt3d contributors"}]

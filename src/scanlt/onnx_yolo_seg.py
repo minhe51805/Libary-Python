@@ -77,12 +77,10 @@ def _letterbox_rgb(img: np.ndarray, new_size: int) -> tuple[np.ndarray, float, i
         out[dh : dh + new_unpad[1], dw : dw + new_unpad[0]] = resized
         return out, r, dw, dh
     except Exception:
-        # Fallback: simple nearest resize via numpy (slower/rough)
-        resized = np.array(
-            np.asarray(
-                __import__("PIL.Image").Image.fromarray(img).resize(new_unpad)  # type: ignore
-            )
-        )
+        # Fallback: resize via Pillow (always available as a dependency)
+        from PIL import Image as _PILImage
+
+        resized = np.array(_PILImage.fromarray(img).resize(new_unpad))
         out = np.full((new_size, new_size, 3), 114, dtype=np.uint8)
         out[dh : dh + new_unpad[1], dw : dw + new_unpad[0]] = resized
         return out, r, dw, dh
@@ -123,6 +121,7 @@ class OnnxYoloSegDetector:
 
         self.session = ort.InferenceSession(self.model_path, providers=providers)
         self.input_name = self.session.get_inputs()[0].name
+        self._output_names = [o.name for o in self.session.get_outputs()]
 
     def predict(self, frame: np.ndarray) -> list[Detection]:
         # frame: RGB uint8 HWC
@@ -132,56 +131,45 @@ class OnnxYoloSegDetector:
 
         outputs = self.session.run(None, {self.input_name: inp})
 
-        # Heuristic: find det and proto
+        # Identify det and proto outputs by ONNX output names first
         det = None
         proto = None
-        for out in outputs:
-            if out.ndim == 3 and out.shape[0] == 1:
-                # could be det: (1, N, D) or proto: (1, C, H, W)
-                if out.shape[1] > 100 and out.shape[2] > 20:
-                    det = out
-                elif out.shape[1] <= 64 and out.shape[2] <= 256:
-                    # ambiguous
-                    pass
-            if out.ndim == 4 and out.shape[0] == 1:
-                proto = out
+        output_map = dict(zip(self._output_names, outputs))
 
-        if det is None:
-            # fallback: first 3D output
-            for out in outputs:
-                if out.ndim == 3 and out.shape[0] == 1:
-                    det = out
-                    break
-
-        if det is None:
-            return []
-
-        det = det[0]  # (N, D)
-
-        # YOLOv8-seg typical: [x,y,w,h, obj?, cls..., mask_coeffs...]
-        # Some exports use [x,y,w,h, conf, cls..., mask_coeffs...]
-        # We'll try to infer cls count by assuming mask coeff length equals proto channels.
-        proto_c = int(proto.shape[1]) if proto is not None else 32
-        if det.shape[1] < 4 + 1 + proto_c:
-            return []
-
-        # infer if obj present: if (D - 4 - proto_c) >= 2 => conf+classes or obj+classes
-        tail = det.shape[1] - 4 - proto_c
-        # assume last proto_c are mask coeffs
-        mask_coeffs = det[:, -proto_c:]
-        raw = det[:, 4:-proto_c]
-
-        if raw.shape[1] == 1:
-            conf = raw[:, 0]
-            class_id = np.zeros_like(conf, dtype=np.int32)
+        if "output0" in output_map and "output1" in output_map:
+            det = output_map["output0"]
+            proto = output_map["output1"]
         else:
-            # If raw has obj + cls, multiply; if raw has conf + cls, take conf*cls
-            obj = raw[:, 0]
-            cls_scores = raw[:, 1:]
-            cls_best = cls_scores.max(axis=1)
-            cls_id = cls_scores.argmax(axis=1)
-            conf = obj * cls_best
-            class_id = cls_id.astype(np.int32)
+            # Fallback: shape-based heuristic
+            for out in outputs:
+                if out.ndim == 4 and out.shape[0] == 1:
+                    proto = out
+                elif out.ndim == 3 and out.shape[0] == 1 and det is None:
+                    det = out
+
+        if det is None:
+            return []
+
+        det = det[0]  # remove batch dim
+        # YOLOv8 ONNX outputs (D, N) where D=attributes, N=anchors
+        # We need (N, D) — rows are detections, columns are attributes
+        if det.shape[0] < det.shape[1]:
+            det = det.T
+
+        # YOLOv8-seg format: [x,y,w,h, cls0..cls79, mask0..mask31]
+        # No objectness score — confidence = max class score
+        proto_c = int(proto.shape[1]) if proto is not None else 32
+        if det.shape[1] < 4 + proto_c:
+            return []
+
+        mask_coeffs = det[:, -proto_c:]
+        cls_scores = det[:, 4:-proto_c]
+
+        if cls_scores.shape[1] == 0:
+            return []
+
+        conf = cls_scores.max(axis=1)
+        class_id = cls_scores.argmax(axis=1).astype(np.int32)
 
         keep = conf >= self.cfg.conf_thres
         if not np.any(keep):
@@ -253,15 +241,13 @@ class OnnxYoloSegDetector:
 
         detections: list[Detection] = []
         for i in range(boxes.shape[0]):
+            det_mask = masks[i] if masks is not None else None
             det_obj = Detection(
                 xyxy=(float(boxes[i, 0]), float(boxes[i, 1]), float(boxes[i, 2]), float(boxes[i, 3])),
                 score=float(conf[i]),
                 class_id=int(class_id[i]),
+                mask=det_mask,
             )
-            # attach mask dynamically if available
-            if masks is not None:
-                # store a float mask (0..1) matching frame HxW
-                setattr(det_obj, "mask", masks[i])
             detections.append(det_obj)
 
         return detections
