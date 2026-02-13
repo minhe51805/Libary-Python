@@ -11,6 +11,7 @@ class Detection:
     xyxy: tuple[float, float, float, float]
     score: float
     class_id: int
+    mask: Optional[np.ndarray] = None
 
 
 @dataclass(frozen=True)
@@ -223,8 +224,8 @@ def run(
             x2i = int(max(0, min(w - 1, x2)))
             y2i = int(max(0, min(h - 1, y2)))
 
-            # If detector attached a mask dynamically
-            mask = getattr(det, "mask", None)
+            # If detector attached a mask
+            mask = det.mask
             if mask is not None:
                 _overlay_mask_rgb(out, mask, (0, 255, 0))
 
